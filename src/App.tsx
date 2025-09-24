@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
-import { Calculator, Home, BookOpen, DollarSign, Building, Briefcase, TrendingUp } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Calculator, Home, BookOpen, DollarSign, Building, Briefcase, TrendingUp, LogOut } from 'lucide-react';
 import HomePage from './components/HomePage';
 import Introduction from './components/Introduction';
 import SalaryIncome from './components/SalaryIncome';
 import HouseProperty from './components/HouseProperty';
 import BusinessProfession from './components/BusinessProfession';
 import CapitalGains from './components/CapitalGains';
+import Login from './components/Login';
+import { onAuthStateChanged, signOutUser } from './services/authService';
+import { User } from 'firebase/auth';
 
 const modules = [
   { id: 'home', name: 'Home', icon: Home },
@@ -18,6 +21,34 @@ const modules = [
 
 function App() {
   const [activeModule, setActiveModule] = useState('home');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged((user) => {
+      setUser(user);
+      setIsAuthenticated(!!user);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogin = () => {
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOutUser();
+      setIsAuthenticated(false);
+      setUser(null);
+      setActiveModule('home');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   const renderModule = () => {
     switch (activeModule) {
@@ -31,6 +62,23 @@ function App() {
     }
   };
 
+  // Show loading spinner while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return <Login onLogin={handleLogin} />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Fixed Sidebar */}
@@ -38,6 +86,12 @@ function App() {
         <div className="p-6 border-b">
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Income Tax Simulator</h1>
           <p className="text-sm text-gray-600">2nd Year - 4th Semester</p>
+          {user && (
+            <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+              <p className="text-sm text-blue-800 font-medium">Welcome back!</p>
+              <p className="text-xs text-blue-600 truncate">{user.email}</p>
+            </div>
+          )}
         </div>
         
         <nav className="p-4">
@@ -58,6 +112,15 @@ function App() {
               </button>
             );
           })}
+          
+          {/* Logout Button */}
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center space-x-3 p-3 rounded-lg text-left transition-colors mb-2 text-gray-700 hover:bg-red-50 hover:text-red-600 mt-4"
+          >
+            <LogOut size={20} />
+            <span className="text-sm font-medium">Logout</span>
+          </button>
         </nav>
       </div>
 
